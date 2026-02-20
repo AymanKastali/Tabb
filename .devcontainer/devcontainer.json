@@ -1,21 +1,24 @@
 {
   "name": "tabb",
+
   "dockerComposeFile": "docker-compose.yml",
   "service": "app",
   "workspaceFolder": "/workspaces/tabb",
+
   "remoteUser": "vscode",
   "updateRemoteUserUID": true,
   "features": {
     "ghcr.io/devcontainers/features/docker-in-docker:2": {
       "moby": false
     },
+    "ghcr.io/devcontainers-extra/features/uv:1": {},
     "ghcr.io/devcontainers/features/java:1": {
       "version": "21",
       "installGradle": false,
       "installMaven": false
     }
   },
-  "postCreateCommand": "curl -LsSf https://astral.sh/uv/install.sh | sh && uv sync --all-groups",
+  "postCreateCommand": "make setup",
   "customizations": {
     "vscode": {
       "extensions": [
@@ -46,8 +49,6 @@
       }
     }
   },
-  "forwardPorts": [
-    8000,
-    5432
-  ]
+
+  "forwardPorts": [8000, 5432]
 }
