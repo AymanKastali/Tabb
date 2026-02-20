@@ -1,10 +1,8 @@
 {
   "name": "tabb",
-
   "dockerComposeFile": "docker-compose.yml",
   "service": "app",
   "workspaceFolder": "/workspaces/tabb",
-
   "remoteUser": "vscode",
   "updateRemoteUserUID": true,
   "features": {
@@ -42,14 +40,14 @@
             "source.organizeImports.ruff": "explicit"
           }
         },
-        "ruff.lineLength": 100,
-        "ruff.lint.args": ["--select", "E,F,I,N,W,UP,B,A,SIM"],
+        "ruff.lineLength": 88,
         "plantuml.render": "PlantUMLServer",
         "plantuml.server": "https://www.plantuml.com/plantuml"
       }
     }
   },
-
-  "forwardPorts": [8000, 5432]
-
+  "forwardPorts": [
+    8000,
+    5432
+  ]
 }
