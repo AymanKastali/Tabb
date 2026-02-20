@@ -1,0 +1,55 @@
+{
+  "name": "tabb",
+
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "app",
+  "workspaceFolder": "/workspaces/tabb",
+
+  "remoteUser": "vscode",
+  "updateRemoteUserUID": true,
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {
+      "moby": false
+    },
+    "ghcr.io/devcontainers/features/java:1": {
+      "version": "21",
+      "installGradle": false,
+      "installMaven": false
+    }
+  },
+  "postCreateCommand": "curl -LsSf https://astral.sh/uv/install.sh | sh && uv sync --all-groups",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.debugpy",
+        "charliermarsh.ruff",
+        "streetsidesoftware.code-spell-checker",
+        "ms-python.mypy-type-checker",
+        "mhutchie.git-graph",
+        "eamodio.gitlens",
+        "tamasfe.even-better-toml",
+        "usernamehw.errorlens",
+        "jebbs.plantuml"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": ".venv/bin/python",
+        "editor.formatOnSave": true,
+        "[python]": {
+          "editor.defaultFormatter": "charliermarsh.ruff",
+          "editor.codeActionsOnSave": {
+            "source.fixAll.ruff": "explicit",
+            "source.organizeImports.ruff": "explicit"
+          }
+        },
+        "ruff.lineLength": 100,
+        "ruff.lint.args": ["--select", "E,F,I,N,W,UP,B,A,SIM"],
+        "plantuml.render": "PlantUMLServer",
+        "plantuml.server": "https://www.plantuml.com/plantuml"
+      }
+    }
+  },
+
+  "forwardPorts": [8000, 5432]
+
+}

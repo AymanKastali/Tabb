@@ -1,0 +1,70 @@
+@startuml tabb — Hexagonal Architecture
+!theme blueprint
+
+title tabb — DDD + Hexagonal Architecture
+
+skinparam component {
+  BackgroundColor<<domain>> #FEFECE
+  BackgroundColor<<application>> #D4E6F1
+  BackgroundColor<<adapter>> #D5F5E3
+  BackgroundColor<<config>> #FADBD8
+  BackgroundColor<<shared>> #E8DAEF
+}
+
+package "Domain Layer" <<domain>> {
+  [Models\n(Entities, Value Objects, Aggregates)] as models
+  [Domain Services] as domain_services
+  [Domain Events] as domain_events
+  [Exceptions] as exceptions
+  package "Shared Kernel" <<shared>> {
+    [Base Entity] as base_entity
+  }
+}
+
+package "Application Layer" <<application>> {
+  [Inbound Ports\n(Use Case Interfaces)] as inbound_ports
+  [Outbound Ports\n(Database & Repository\nInterfaces)] as outbound_ports
+  [Use Cases] as use_cases
+  [DTOs] as dtos
+}
+
+package "Adapters Layer" <<adapter>> {
+  package "Inbound Adapters" {
+    [FastAPI Routes] as api
+  }
+  package "Outbound Adapters" {
+
+    [SQLAlchemy\nPersistence] as persistence
+
+  }
+  package "Config" <<config>> {
+    [Settings\n(pydantic-settings)] as config
+  }
+}
+
+' Dependency flow — inward only
+api --> inbound_ports
+api --> dtos
+use_cases --> inbound_ports : implements
+use_cases --> outbound_ports : uses
+use_cases --> models
+use_cases --> domain_services
+use_cases --> domain_events
+persistence --> outbound_ports : implements
+persistence --> models
+models --> base_entity
+models --> exceptions
+domain_services --> models
+config --> use_cases : configures
+
+note bottom of models
+  Pure Python — no framework
+  or infrastructure imports
+end note
+
+note bottom of outbound_ports
+  Abstract interfaces (abc.ABC)
+  defined in the application layer
+end note
+
+@enduml
