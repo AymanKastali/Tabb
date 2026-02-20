@@ -8,7 +8,7 @@ class Settings(BaseSettings):
 
     app_name: str = "tabb"
     debug: bool = False
-    host: str = "0.0.0.0"
+    host: str = "0.0.0.0"  # nosec B104 — required for container networking
     port: int = 8000
 
     database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/tabb"
@@ -17,7 +17,6 @@ class Settings(BaseSettings):
     db_pool_timeout: int = 30
     db_pool_recycle: int = 1800
     db_command_timeout: int = 30
-
 
     model_config = {"env_prefix": "TABB_", "env_file": (".env", ".env.dev")}
 
