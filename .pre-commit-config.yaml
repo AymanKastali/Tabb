@@ -29,7 +29,7 @@ repos:
     rev: v1.15.0
     hooks:
       - id: mypy
-        additional_dependencies: [pydantic]
+        additional_dependencies: [pydantic, pydantic-settings]
 
   # ── Spell checking ───────────────────────────────────────────────
   - repo: https://github.com/codespell-project/codespell
