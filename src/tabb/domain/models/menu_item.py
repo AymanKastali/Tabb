@@ -3,7 +3,11 @@
 from dataclasses import dataclass
 from typing import Self
 
-from tabb.domain.events.events import MenuItemAvailable, MenuItemSoldOut
+from tabb.domain.events.events import (
+    MenuItemAvailable,
+    MenuItemCreated,
+    MenuItemSoldOut,
+)
 from tabb.domain.exceptions.validation import InvalidFieldTypeError, RequiredFieldError
 from tabb.domain.models.value_objects import Money
 from tabb.domain.shared.building_blocks import AggregateRoot, Id
@@ -54,7 +58,15 @@ class MenuItem(AggregateRoot[MenuItemId]):
     @classmethod
     def create(cls, item_id: MenuItemId, name: str, price: Money) -> Self:
         """Factory: create a new available menu item."""
-        return cls(_id=item_id, _name=name, _price=price, _available=True)
+        item = cls(_id=item_id, _name=name, _price=price, _available=True)
+        item._record_event(
+            MenuItemCreated(
+                menu_item_id=str(item_id),
+                name=name,
+                price=str(price.amount),
+            )
+        )
+        return item
 
     def mark_sold_out(self) -> None:
         """Mark this menu item as sold out."""

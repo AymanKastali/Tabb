@@ -15,7 +15,3 @@ class MenuItemRepository(ABC):
     @abstractmethod
     async def save(self, item: MenuItem) -> None:
         """Persist a menu item (insert or update)."""
-
-    @abstractmethod
-    async def find_all_available(self) -> list[MenuItem]:
-        """Return all currently available menu items."""
