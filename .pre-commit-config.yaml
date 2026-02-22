@@ -30,7 +30,7 @@ repos:
     hooks:
       - id: mypy
         exclude: ^tests/
-        additional_dependencies: [pydantic, pydantic-settings]
+        additional_dependencies: [pydantic, pydantic-settings, fastapi]
 
   # ── Spell checking ───────────────────────────────────────────────
   - repo: https://github.com/codespell-project/codespell

@@ -85,6 +85,6 @@ def create_app() -> FastAPI:
 def _register_routes(app: FastAPI) -> None:
     """Register API route handlers."""
 
-    @app.get("/health")  # type: ignore[misc]
+    @app.get("/health")
     async def health_check() -> dict[str, str]:
         return {"status": "healthy", "service": settings.app_name}
