@@ -18,6 +18,8 @@ class Settings(BaseSettings):
     db_pool_recycle: int = 1800
     db_command_timeout: int = 30
 
+    outbox_poll_interval_seconds: float = 1.0
+
     model_config = {"env_prefix": "TABB_", "env_file": (".env", ".env.dev")}
 
 

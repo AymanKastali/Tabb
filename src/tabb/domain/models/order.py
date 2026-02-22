@@ -14,13 +14,13 @@ from tabb.domain.events.events import (
     OrderPlaced,
 )
 from tabb.domain.exceptions.business import (
-    EmptyOrderError,
     InvalidOrderItemStateError,
     OrderItemNotFoundError,
     OrderNotFullyReadyError,
     OrderNotOpenError,
 )
 from tabb.domain.exceptions.validation import InvalidFieldTypeError, RequiredFieldError
+from tabb.domain.models.menu_item import MenuItemId
 from tabb.domain.models.value_objects import Money, Quantity, TableNumber
 from tabb.domain.shared.building_blocks import AggregateRoot, Entity, Id
 
@@ -126,9 +126,7 @@ class OrderItem(Entity[OrderItemId]):
 
     def cancel(self) -> None:
         if self._status == OrderItemStatus.READY:
-            raise InvalidOrderItemStateError(
-                str(self.id), self._status.value, "cancel"
-            )
+            raise InvalidOrderItemStateError(str(self.id), self._status.value, "cancel")
         if self._status == OrderItemStatus.CANCELLED:
             return
         self._status = OrderItemStatus.CANCELLED
@@ -190,40 +188,52 @@ class Order(AggregateRoot[OrderId]):
     def place(
         order_id: OrderId,
         table: TableNumber,
-        items: list[OrderItem],
     ) -> Order:
-        """Factory: create a new order with initial items.
+        """Factory: create a new open order with no items.
 
-        Raises EmptyOrderError if items list is empty.
+        Items are added afterwards via ``add_item()``.
         """
-        if not items:
-            raise EmptyOrderError()
-
         order = Order(
-            _id=order_id, _table=table, _items=list(items), _status=OrderStatus.OPEN
+            _id=order_id,
+            _table=table,
+            _items=[],
+            _status=OrderStatus.OPEN,
         )
         order._record_event(
             OrderPlaced(
                 order_id=str(order_id),
                 table_number=table.value,
-                item_count=len(items),
             )
         )
         return order
 
     # -- Commands ---------------------------------------------------------
 
-    def add_item(self, item: OrderItem) -> None:
-        """Add an item to this open order."""
+    def add_item(
+        self,
+        item_id: OrderItemId,
+        menu_item_id: MenuItemId,
+        name: str,
+        unit_price: Money,
+        quantity: Quantity,
+    ) -> None:
+        """Add an item to this open order. The aggregate builds the OrderItem."""
         self._assert_open()
-        if not isinstance(item, OrderItem):
-            raise InvalidFieldTypeError("Order.add_item", "item", "OrderItem")
+        item = OrderItem(
+            _id=item_id,
+            _menu_item_id=str(menu_item_id),
+            _name=name,
+            _unit_price=unit_price,
+            _quantity=quantity,
+        )
         self._items.append(item)
         self._record_event(
             OrderItemAdded(
                 order_id=str(self.id),
                 order_item_id=str(item.id),
                 menu_item_id=item.menu_item_id,
+                name=item.name,
+                unit_price=str(item.unit_price.amount),
                 quantity=item.quantity.value,
             )
         )

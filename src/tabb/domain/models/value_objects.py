@@ -1,5 +1,7 @@
 """Shared value objects for the domain layer."""
 
+from __future__ import annotations
+
 from dataclasses import dataclass
 from decimal import Decimal
 

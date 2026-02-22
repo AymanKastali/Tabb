@@ -4,7 +4,11 @@ from decimal import Decimal
 
 import pytest
 
-from tabb.domain.events.events import MenuItemAvailable, MenuItemSoldOut
+from tabb.domain.events.events import (
+    MenuItemAvailable,
+    MenuItemCreated,
+    MenuItemSoldOut,
+)
 from tabb.domain.exceptions.validation import InvalidFieldTypeError, RequiredFieldError
 from tabb.domain.models.menu_item import MenuItem, MenuItemId
 from tabb.domain.models.value_objects import Money
@@ -19,9 +23,14 @@ class TestMenuItemFactory:
         assert item.price == Money(Decimal("9.99"))
         assert item.available is True
 
-    def test_create_records_no_events(self) -> None:
+    def test_create_records_menu_item_created_event(self) -> None:
         item = MenuItem.create(MenuItemId("m-1"), "Burger", Money(Decimal("9.99")))
-        assert item.collect_events() == []
+        events = item.collect_events()
+        assert len(events) == 1
+        assert isinstance(events[0], MenuItemCreated)
+        assert events[0].menu_item_id == "m-1"
+        assert events[0].name == "Burger"
+        assert events[0].price == "9.99"
 
 
 class TestMenuItemValidation:
@@ -54,6 +63,7 @@ class TestMenuItemValidation:
 class TestMenuItemMarkSoldOut:
     def test_mark_sold_out(self) -> None:
         item = MenuItem.create(MenuItemId("m-1"), "Burger", Money(Decimal("9.99")))
+        item.collect_events()  # clear MenuItemCreated
         item.mark_sold_out()
 
         assert item.available is False
@@ -86,5 +96,6 @@ class TestMenuItemMarkAvailable:
 
     def test_mark_available_idempotent(self) -> None:
         item = MenuItem.create(MenuItemId("m-1"), "Burger", Money(Decimal("9.99")))
+        item.collect_events()  # clear MenuItemCreated
         item.mark_available()
         assert item.collect_events() == []

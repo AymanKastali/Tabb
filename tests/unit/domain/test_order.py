@@ -13,13 +13,13 @@ from tabb.domain.events.events import (
     OrderPlaced,
 )
 from tabb.domain.exceptions.business import (
-    EmptyOrderError,
     InvalidOrderItemStateError,
     OrderItemNotFoundError,
     OrderNotFullyReadyError,
     OrderNotOpenError,
 )
 from tabb.domain.exceptions.validation import InvalidFieldTypeError, RequiredFieldError
+from tabb.domain.models.menu_item import MenuItemId
 from tabb.domain.models.order import (
     Order,
     OrderId,
@@ -56,16 +56,24 @@ def _item(
     )
 
 
-def _order(
+def _place_and_add(
     order_id: str = "o-1",
     table: int = 5,
-    items: list[OrderItem] | None = None,
+    items: list[tuple[str, str, str, str, int]] | None = None,
 ) -> Order:
-    return Order.place(
-        OrderId(order_id),
-        TableNumber(table),
-        items if items is not None else [_item()],
-    )
+    """Place an order and add items via add_item()."""
+    order = Order.place(OrderId(order_id), TableNumber(table))
+    for item_id, menu_id, name, price, qty in (
+        items if items is not None else [("oi-1", "m-1", "Burger", "9.99", 1)]
+    ):
+        order.add_item(
+            OrderItemId(item_id),
+            MenuItemId(menu_id),
+            name,
+            _money(price),
+            Quantity(qty),
+        )
+    return order
 
 
 # ---------------------------------------------------------------------------
@@ -235,29 +243,18 @@ class TestOrderValidation:
 
 class TestOrderPlace:
     def test_place_creates_open_order(self) -> None:
-        order = _order()
+        order = Order.place(OrderId("o-1"), TableNumber(5))
         assert order.status == OrderStatus.OPEN
         assert order.table == TableNumber(5)
-        assert len(order.items) == 1
+        assert len(order.items) == 0
 
     def test_place_records_order_placed_event(self) -> None:
-        order = _order()
+        order = Order.place(OrderId("o-1"), TableNumber(5))
         events = order.collect_events()
         assert len(events) == 1
         assert isinstance(events[0], OrderPlaced)
         assert events[0].order_id == "o-1"
         assert events[0].table_number == 5
-        assert events[0].item_count == 1
-
-    def test_place_with_empty_items_raises(self) -> None:
-        with pytest.raises(EmptyOrderError):
-            Order.place(OrderId("o-1"), TableNumber(1), [])
-
-    def test_place_defensive_copies_items(self) -> None:
-        items = [_item()]
-        order = _order(items=items)
-        items.append(_item(item_id="oi-2"))
-        assert len(order.items) == 1
 
 
 # ---------------------------------------------------------------------------
@@ -267,30 +264,38 @@ class TestOrderPlace:
 
 class TestOrderAddItem:
     def test_add_item(self) -> None:
-        order = _order()
+        order = Order.place(OrderId("o-1"), TableNumber(5))
         order.collect_events()
 
-        new_item = _item(item_id="oi-2", menu_item_id="m-2", name="Fries")
-        order.add_item(new_item)
+        order.add_item(
+            OrderItemId("oi-1"),
+            MenuItemId("m-1"),
+            "Burger",
+            _money("9.99"),
+            Quantity(1),
+        )
 
-        assert len(order.items) == 2
+        assert len(order.items) == 1
         events = order.collect_events()
         assert len(events) == 1
         assert isinstance(events[0], OrderItemAdded)
-        assert events[0].order_item_id == "oi-2"
-        assert events[0].menu_item_id == "m-2"
+        assert events[0].order_item_id == "oi-1"
+        assert events[0].menu_item_id == "m-1"
+        assert events[0].name == "Burger"
+        assert events[0].unit_price == "9.99"
 
     def test_add_item_to_completed_order_raises(self) -> None:
-        order = _order()
+        order = _place_and_add()
         order.mark_item_ready(OrderItemId("oi-1"))
         order.complete()
         with pytest.raises(OrderNotOpenError):
-            order.add_item(_item(item_id="oi-2"))
-
-    def test_add_item_wrong_type_raises(self) -> None:
-        order = _order()
-        with pytest.raises(InvalidFieldTypeError):
-            order.add_item("not an item")
+            order.add_item(
+                OrderItemId("oi-2"),
+                MenuItemId("m-2"),
+                "Fries",
+                _money("4.99"),
+                Quantity(1),
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -300,7 +305,7 @@ class TestOrderAddItem:
 
 class TestOrderCancelItem:
     def test_cancel_item(self) -> None:
-        order = _order()
+        order = _place_and_add()
         order.collect_events()
 
         order.cancel_item(OrderItemId("oi-1"))
@@ -309,12 +314,12 @@ class TestOrderCancelItem:
         assert any(isinstance(e, OrderItemCancelled) for e in events)
 
     def test_cancel_item_not_found_raises(self) -> None:
-        order = _order()
+        order = _place_and_add()
         with pytest.raises(OrderItemNotFoundError):
             order.cancel_item(OrderItemId("nonexistent"))
 
     def test_cancel_all_items_auto_cancels_order(self) -> None:
-        order = _order()
+        order = _place_and_add()
         order.collect_events()
 
         order.cancel_item(OrderItemId("oi-1"))
@@ -326,7 +331,7 @@ class TestOrderCancelItem:
         assert OrderCancelled in event_types
 
     def test_cancel_item_on_cancelled_order_raises(self) -> None:
-        order = _order()
+        order = _place_and_add()
         order.cancel()
         with pytest.raises(OrderNotOpenError):
             order.cancel_item(OrderItemId("oi-1"))
@@ -339,7 +344,7 @@ class TestOrderCancelItem:
 
 class TestOrderMarkItemReady:
     def test_mark_item_ready(self) -> None:
-        order = _order()
+        order = _place_and_add()
         order.collect_events()
 
         order.mark_item_ready(OrderItemId("oi-1"))
@@ -350,7 +355,7 @@ class TestOrderMarkItemReady:
         assert events[0].order_item_id == "oi-1"
 
     def test_mark_item_ready_not_found_raises(self) -> None:
-        order = _order()
+        order = _place_and_add()
         with pytest.raises(OrderItemNotFoundError):
             order.mark_item_ready(OrderItemId("nonexistent"))
 
@@ -362,7 +367,7 @@ class TestOrderMarkItemReady:
 
 class TestOrderComplete:
     def test_complete_when_all_ready(self) -> None:
-        order = _order()
+        order = _place_and_add()
         order.mark_item_ready(OrderItemId("oi-1"))
         order.collect_events()
 
@@ -374,13 +379,17 @@ class TestOrderComplete:
         assert isinstance(events[0], OrderCompleted)
 
     def test_complete_with_pending_items_raises(self) -> None:
-        order = _order()
+        order = _place_and_add()
         with pytest.raises(OrderNotFullyReadyError):
             order.complete()
 
     def test_complete_with_mix_of_ready_and_cancelled(self) -> None:
-        items = [_item(item_id="oi-1"), _item(item_id="oi-2", name="Fries")]
-        order = _order(items=items)
+        order = _place_and_add(
+            items=[
+                ("oi-1", "m-1", "Burger", "9.99", 1),
+                ("oi-2", "m-2", "Fries", "4.99", 1),
+            ]
+        )
 
         order.cancel_item(OrderItemId("oi-1"))
         order.mark_item_ready(OrderItemId("oi-2"))
@@ -390,7 +399,7 @@ class TestOrderComplete:
         assert order.status == OrderStatus.COMPLETED
 
     def test_complete_already_completed_raises(self) -> None:
-        order = _order()
+        order = _place_and_add()
         order.mark_item_ready(OrderItemId("oi-1"))
         order.complete()
         with pytest.raises(OrderNotOpenError):
@@ -404,7 +413,7 @@ class TestOrderComplete:
 
 class TestOrderCancel:
     def test_cancel_order(self) -> None:
-        order = _order()
+        order = _place_and_add()
         order.collect_events()
 
         order.cancel()
@@ -415,8 +424,12 @@ class TestOrderCancel:
         assert isinstance(events[0], OrderCancelled)
 
     def test_cancel_sets_non_ready_items_to_cancelled(self) -> None:
-        items = [_item(item_id="oi-1"), _item(item_id="oi-2", name="Fries")]
-        order = _order(items=items)
+        order = _place_and_add(
+            items=[
+                ("oi-1", "m-1", "Burger", "9.99", 1),
+                ("oi-2", "m-2", "Fries", "4.99", 1),
+            ]
+        )
         order.mark_item_ready(OrderItemId("oi-1"))
 
         order.cancel()
@@ -429,7 +442,7 @@ class TestOrderCancel:
         assert oi2.status == OrderItemStatus.CANCELLED
 
     def test_cancel_already_cancelled_raises(self) -> None:
-        order = _order()
+        order = _place_and_add()
         order.cancel()
         with pytest.raises(OrderNotOpenError):
             order.cancel()
@@ -442,15 +455,19 @@ class TestOrderCancel:
 
 class TestOrderQueries:
     def test_active_items_excludes_cancelled(self) -> None:
-        items = [_item(item_id="oi-1"), _item(item_id="oi-2", name="Fries")]
-        order = _order(items=items)
+        order = _place_and_add(
+            items=[
+                ("oi-1", "m-1", "Burger", "9.99", 1),
+                ("oi-2", "m-2", "Fries", "4.99", 1),
+            ]
+        )
         order.cancel_item(OrderItemId("oi-1"))
 
         assert len(order.active_items) == 1
         assert order.active_items[0].id == OrderItemId("oi-2")
 
     def test_items_returns_defensive_copy(self) -> None:
-        order = _order()
+        order = _place_and_add()
         items = order.items
         items.append(_item(item_id="oi-2"))
         assert len(order.items) == 1

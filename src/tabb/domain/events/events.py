@@ -11,7 +11,6 @@ class OrderPlaced(DomainEvent):
 
     order_id: str
     table_number: int
-    item_count: int
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -21,6 +20,8 @@ class OrderItemAdded(DomainEvent):
     order_id: str
     order_item_id: str
     menu_item_id: str
+    name: str
+    unit_price: str
     quantity: int
 
 
@@ -59,6 +60,15 @@ class MenuItemSoldOut(DomainEvent):
     """Raised when a menu item is marked as sold out."""
 
     menu_item_id: str
+
+
+@dataclass(frozen=True, kw_only=True)
+class MenuItemCreated(DomainEvent):
+    """Raised when a new menu item is created."""
+
+    menu_item_id: str
+    name: str
+    price: str
 
 
 @dataclass(frozen=True, kw_only=True)
